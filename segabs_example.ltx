@@ -19,6 +19,7 @@
 \usepackage{diagbox}
 \usepackage{textcomp}
 \usepackage{nicefrac}
+\usepackage{bm}
 \usepackage{array} % for "\newcolumntype" macro
 \newcolumntype{C}{>{{}}c<{{}}}
 \setlength\arraycolsep{0pt}
@@ -100,13 +101,59 @@ Lossy compression methods tailored for floating-point data offer substantial red
 
 
 % --------------------------------------------------------------------------
-\section{Section 3}\label{sec:3}
+\section{Elastic Reverse-Time Migration}\label{sec:3}
+\subsection{Governing equations}
 % --------------------------------------------------------------------------
+
+In a heterogeneous elastic, anisotropic medium, the linear wave equation in 3-D Cartesian coordinates can be written as
+
+\begin{equation}
+\rho \partial _{tt} \bm{u}= \nabla \cdot \bm{\sigma} + \bm{f}
+\end{equation}
+
+with the constitutive relation
+
+\begin{equation}
+\bm{\sigma} = \bm{C: \epsilon}
+\end{equation}
+
+and the definition of the strain
+
+\begin{equation}
+\epsilon = \dfrac{1}{2}[\nabla \bm{u}  + (\nabla \bm{u})^{T}],
+\end{equation}
+
+where $\bm{u}$ is the displacement vector, $\bm{\sigma}$ denotes the stress tensor, $\bm{\epsilon}$ is the strain tensor; $\bm{C}$ is the fourth-order stiffness tensor of the elastic medium which is usually expressed by the Voigt notation $C_{ij} (i, j = 1, 2, \hdots , 6)$, $\rho$ is the solid mass density, and $\bm{f}$ stands for an external source force; the ``:'' symbol represents a double tensorial contraction operation, the superscript $T$ denotes the matrix transpose, and $\partial _{tt}$ is the second-order temporal derivative.
+
+\subsection{Imaging condition}
+
+From the several available options for elastic imaging conditions, we use a non-pure mode imaging condition (i.e., there is no mode separation in the wave simulation). This imaging condition cross-correlates the sum of normal stresses to obtain a PP image \citep{monsegny2019pure}:
+
+\begin{equation}
+I_{PP}= \int_0^T (\sigma_{xx} + \sigma_{yy} + \sigma_{zz})(\hat{\sigma}_{xx} + \hat{\sigma}_{yy} + \hat{\sigma}_{zz})dt,
+\end{equation}
+
+where $T$ is the maximum seismogram time and the hat (``\textasciicircum'') means reverse propagated. The 3D elastic RTM algorithm we used to perform the migrations is based on a 3D elastic finite difference modeling algorithm which is part of an in-house software package and is fourth-order accurate in time and eighth-order accurate in space. The elastic finite difference code is parallelized using OpenMP.
 
 % --------------------------------------------------------------------------
 \section{Numerical experiments}\label{sec:4}
 % --------------------------------------------------------------------------
-To study the use of lossy compressors for elastic RTM, we, we prepared a synthetic dataset using a subsection of the SEAM acoustic isotropic velocity model. We selected a specific segment representing a sedimentary basin, bordered by salt on one side. Additionally, we introduced an 800-meter-deep water layer with a constant velocity of 1500 m/s on top, simulating a moderately deep water environment. For the water layer, we set the s-wave velocity to zero, while in the sediments and salt, the s-wave velocity was uniformly defined as half the p-wave velocity divided by $2\sqrt{2}$. Both water and salt were assumed to be isotropic, with zero anisotropy parameters. In the sediment layers, we maintained constant anisotropic parameters: $\delta$ = 0.02, $\epsilon$ = 0.04, $\gamma$ = 0.01, azimuth ($\phi$) at 30°, and structural dip ($\theta$) at 10°. Density varied, with 1 g/cm${^{3}}$ in the water layer, 2 g/cm${^{3}}$ in all sediments, and 2.5 g/cm${^{3}}$ in the salt. We generated synthetic data using a P-wave point source with a Ricker wavelet peaking at 8 Hz, and a total recording time of 4 s. The dataset comprised 320 seismic shots. Upon acquiring the data, our evaluation proceeded using an industrial parallel elastic RTM code. This involved running the code through 4000 time steps, generating snapshots at each time step. Given our maximum offset constraint of 3 km, the physical parameters (vp, vs, density, and Thomsen parameters) were adjusted accordingly. With this adjustment, the forward propagation stage produced 4000 snapshots for compression, each containing 200x150x100 single-precision floating-point data points.
+To study the use of lossy compressors for elastic RTM, we prepared a synthetic dataset using a subsection of the SEAM acoustic isotropic velocity model. We selected a specific segment representing a sedimentary basin, bordered by salt on one side. Additionally, we introduced an 800-meter-deep water layer with a constant velocity of 1500 m/s on top, simulating a moderately deep water environment. For the water layer, we set the s-wave velocity to zero, while in the sediments and salt, the s-wave velocity was uniformly defined as half the p-wave velocity divided by $2\sqrt{2}$. Both water and salt were assumed to be isotropic, with zero anisotropy parameters. In the sediment layers, we maintained constant anisotropic parameters: $\delta$ = 0.02, $\epsilon$ = 0.04, $\gamma$ = 0.01, azimuth ($\phi$) at 30°, and structural dip ($\theta$) at 10°. Density varied, with 1 g/cm${^{3}}$ in the water layer, 2 g/cm${^{3}}$ in all sediments, and 2.5 g/cm${^{3}}$ in the salt. We generated synthetic data using a P-wave point source with a Ricker wavelet peaking at 8 Hz, and a total recording time of 4 s. The dataset comprised 320 seismic shots. Upon acquiring the data, our evaluation proceeded using an industrial parallel elastic RTM code. This involved running the code through 4000 time steps, generating snapshots at each time step. Given our maximum offset constraint of 3 km, the physical parameters (vp, vs, density, and Thomsen parameters) were adjusted accordingly. With this adjustment, the forward propagation stage produced 4000 snapshots for compression, each containing 200x150x100 single-precision floating-point data points. Thus, the total demand to store the source wavefield without compression is 48 GB per shot.
+
+We used commonly adopted metrics to evaluate scientific lossy compression, setting a point-wise absolute error of 1E-9 as the error-bound ($eb$) type. This $eb$ type is supported by all tested compressors, providing a basis for comparison, although not all of them guarantee the requested $eb$.
+
+\begin{itemize}
+\item Compression Ratio (CR): CR compares the original data size with compressed data size by
+\begin{equation}
+CR= \dfrac{\mbox{size(original data)}}{\mbox{size (compressed data)}}
+\end{equation}
+
+\item{Peak Signal-to-Noise Ratio (PSNR)}: measure the reconstructed data quality compared to the original data. It is defined as:
+\begin{equation}
+PSNR= 20\cdot log_{10}(\dfrac{max(x)-min(x)}{\sqrt{MSE(x,\hat{x})}}),
+\end{equation}
+where $MSE(x,\hat{x})$ represents the mean squared error between the original dataset $x$ and the decompressed dataset $\hat{x}$. A higher PSNR value signifies better data fidelity.
+\end{itemize}
 
 % --------------------------------------------------------------------------
 \section{Conclusions}\label{sec:5}
